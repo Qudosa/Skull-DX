@@ -1,34 +1,25 @@
-// src/scenes/StartMenuScene.js
 import * as THREE from 'three';
 
 export class StartMenuScene {
   constructor(renderer, backgroundScene) {
     this.renderer = renderer;
-    this.backgroundScene = backgroundScene; // keep a reference to BootScene (spinning skull)
+    this.backgroundScene = backgroundScene;
     this.scene = new THREE.Scene();
-    this.camera = new THREE.PerspectiveCamera(
-      45,
-      window.innerWidth / window.innerHeight,
-      0.1,
-      100
-    );
+    this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
     this.camera.position.z = 3;
-
-    // Add faint ambient light for the overlay scene (optional)
-    const ambient = new THREE.AmbientLight(0xffffff, 0.3);
-    this.scene.add(ambient);
 
     this.clock = new THREE.Clock();
     this.createUI();
-
-    // Apply blur/dim overlay using CSS
     this.applyCanvasBlur();
+
+    const ambient = new THREE.AmbientLight(0xffffff, 0.3);
+    this.scene.add(ambient);
   }
 
   applyCanvasBlur() {
     const canvas = document.getElementById('app');
     canvas.style.transition = 'filter 1s ease, opacity 1s ease';
-    canvas.style.filter = 'blur(6px) brightness(1.2)'; // ✅ blur + darken
+    canvas.style.filter = 'blur(8px) brightness(0.4)';
     canvas.style.opacity = 1;
   }
 
@@ -56,21 +47,84 @@ export class StartMenuScene {
     document.getElementById('btn-start').onclick = () => this.startGame();
     document.getElementById('btn-options').onclick = () => this.showOptions();
     document.getElementById('btn-quit').onclick = () => this.quitGame();
+
+    const style = document.createElement('style');
+    style.innerHTML = `
+      #menu-ui {
+        position: absolute;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 100;
+        color: #fff;
+        font-family: 'Orbitron', sans-serif;
+        text-shadow: 0 0 8px #f00, 0 0 20px #800;
+      }
+
+      #menu-title {
+        font-size: 4rem;
+        margin-bottom: 60px;
+        letter-spacing: 0.15rem;
+      }
+
+      #menu-buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+
+      #menu-buttons button {
+        background: rgba(0,0,0,0.6);
+        border: 2px solid #f00;
+        color: #fff;
+        padding: 14px 36px;
+        font-size: 1.3rem;
+        border-radius: 8px;
+        font-family: 'Orbitron', sans-serif;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+
+      #menu-buttons button:hover {
+        background: #f00;
+        color: #000;
+        text-shadow: none;
+      }
+
+      #menu-ui::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: radial-gradient(transparent 40%, rgba(0,0,0,0.8) 100%);
+        z-index: -1;
+      }
+    `;
+    document.head.appendChild(style);
   }
 
   startGame() {
     console.log('Starting game...');
     this.fadeOut();
-    this.removeCanvasBlur(); // clear blur when leaving menu
+    this.removeCanvasBlur();
+    setTimeout(() => {
+      if (window.app && typeof window.app.switchToGameScene === 'function') {
+        window.app.switchToGameScene();
+      }
+    }, 800);
   }
 
   showOptions() {
-    console.log('Options menu (coming soon)');
+    alert('Options menu not yet implemented.');
   }
 
   quitGame() {
-    console.log('Quit pressed');
-    window.close?.();
+    alert('Quit feature not available in browser build.');
   }
 
   fadeOut() {
@@ -80,23 +134,19 @@ export class StartMenuScene {
     ui.style.opacity = 0;
   }
 
-update() {
-  // Render the background BootScene first (the spinning skull)
-  if (this.backgroundScene) {
-    this.backgroundScene.update();  // updates rotation
-    this.renderer.autoClear = true; // make sure it draws to canvas
-    this.renderer.render(this.backgroundScene.scene, this.backgroundScene.camera);
+  update() {
+    if (this.backgroundScene) {
+      this.backgroundScene.update();
+      this.renderer.autoClear = true;
+      this.renderer.render(this.backgroundScene.scene, this.backgroundScene.camera);
+    }
+    this.renderer.autoClear = false;
+    this.renderer.render(this.scene, this.camera);
   }
 
-  // Then render this overlay scene (if you want extra effects later)
-  this.renderer.autoClear = false;
-  this.renderer.render(this.scene, this.camera);
-}
-
-
-  onResize(width, height) {
-    this.camera.aspect = width / height;
+  onResize() {
+    this.camera.aspect = window.innerWidth / window.innerHeight;
     this.camera.updateProjectionMatrix();
-    this.renderer.setSize(width, height);
+    this.renderer.setSize(window.innerWidth, window.innerHeight);
   }
 }

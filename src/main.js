@@ -1,4 +1,3 @@
-// src/main.js
 import * as THREE from 'three';
 import { BootScene } from './scenes/BootScene.js';
 import { StartMenuScene } from './scenes/StartMenuScene.js';
@@ -7,6 +6,8 @@ import './styles.css';
 let renderer;
 let bootScene;
 let startMenu;
+let gameScene;
+
 let currentScene = 'boot';
 let hasStarted = false;
 
@@ -16,15 +17,19 @@ function init() {
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.setPixelRatio(window.devicePixelRatio);
 
+  // Boot Scene
   bootScene = new BootScene(renderer);
-  window.addEventListener('resize', onResize);
 
+  window.addEventListener('resize', () => {
+    if (bootScene && currentScene === 'boot') bootScene.onResize(window.innerWidth, window.innerHeight);
+    if (startMenu && currentScene === 'menu') startMenu.onResize(window.innerWidth, window.innerHeight);
+    if (gameScene && currentScene === 'game') gameScene.onResize(window.innerWidth, window.innerHeight);
+  });
+
+  // Input for splash start
   window.addEventListener('keydown', handleStart);
   window.addEventListener('mousedown', handleStart);
   window.addEventListener('touchstart', handleStart);
-
-  window.addEventListener('gamepadconnected', () => console.log('Gamepad connected'));
-  checkGamepad();
 
   animate();
 }
@@ -40,50 +45,54 @@ function handleStart() {
     enterText.style.transition = 'opacity 0.8s ease';
     enterText.style.opacity = 0;
   }
-
   if (titleText) {
     titleText.style.transition = 'opacity 0.8s ease';
     titleText.style.opacity = 0;
   }
 
-  // Fade UI, then load menu
   setTimeout(() => {
     if (enterText) enterText.remove();
     if (titleText) titleText.remove();
 
-    // Instead of replacing BootScene, we just layer StartMenu on top
     currentScene = 'menu';
     startMenu = new StartMenuScene(renderer, bootScene);
   }, 800);
 }
 
-
-
-function checkGamepad() {
-  if (currentScene !== 'boot' || hasStarted) return;
-  const gamepads = navigator.getGamepads();
-  for (const gp of gamepads) {
-    if (!gp) continue;
-    if (gp.buttons.some((b) => b.pressed)) {
-      handleStart();
-      break;
-    }
+async function switchToGameScene() {
+  if (startMenu) {
+    startMenu.fadeOut();
+    startMenu.removeCanvasBlur();
   }
-  requestAnimationFrame(checkGamepad);
+
+  setTimeout(async () => {
+    const ui = document.getElementById('menu-ui');
+    if (ui) ui.remove();
+
+    if (bootScene && bootScene.dispose) bootScene.dispose();
+
+    const { GameScene } = await import('./scenes/GameScene.js');
+    gameScene = new GameScene(renderer);
+    currentScene = 'game';
+  }, 800);
 }
 
-function onResize() {
-  if (bootScene && currentScene === 'boot')
-    bootScene.onResize(window.innerWidth, window.innerHeight);
-  if (startMenu && currentScene === 'menu')
-    startMenu.onResize(window.innerWidth, window.innerHeight);
-  renderer.setSize(window.innerWidth, window.innerHeight);
-}
+window.app = { switchToGameScene };
 
 function animate() {
   requestAnimationFrame(animate);
-  if (currentScene === 'boot') bootScene.update();
-  else if (currentScene === 'menu') startMenu.update();
+
+  switch (currentScene) {
+    case 'boot':
+      bootScene?.update();
+      break;
+    case 'menu':
+      startMenu?.update();
+      break;
+    case 'game':
+      gameScene?.update();
+      break;
+  }
 }
 
 init();
